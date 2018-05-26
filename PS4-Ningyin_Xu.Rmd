@@ -1,0 +1,76 @@
+---
+title: "Text & Network Visualization"
+author: "Ningyin Xu"
+date: "5/15/2018"
+output: 
+  github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE,
+                      warning = FALSE,
+                      echo = FALSE,
+                      cache = T)
+library(tidyverse)
+library(knitr)
+library(broom)
+library(stringr)
+library(modelr)
+library(forcats)
+library(tidytext)
+library(wordcloud)
+library(scales)
+library(rtweet)
+
+options(digits = 3)
+set.seed(1234)
+theme_set(theme_minimal())
+```
+
+```{r}
+appname <- "Ningyin Xu"
+key <- "IBXEOWUgfY6j0YmHxlKi1qdEE"
+secret <- "1CgwiCLVFJhWKewyd2DIPHG25xaTCalNaR79dYgC9e6JxtBXkM
+"
+twitter_token <- create_token(
+  app = appname,
+  consumer_key = key,
+  consumer_secret = secret)
+
+## path of home directory
+home_directory <- path.expand("~/Desktop/dataviz/ntg-sixisxu/")
+
+## combine with name for token
+file_name <- file.path(home_directory, "twitter_token.rds")
+
+## save token to home directory
+saveRDS(twitter_token, file = file_name)
+
+rt <- search_tweets(
+  q = "#MeToo",
+  n = 3000,
+  include_rts = F
+)
+
+# tokenize
+rstats_token <- rt %>%
+  unnest_tokens(word, text, token = "tweets") %>%
+  filter(!word %in% stop_words$word)
+
+# plot
+rstats_token %>%
+  count(word) %>%
+  filter(word != "#rstats") %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+
+
+
+
+
+
+
+
+
+
+
