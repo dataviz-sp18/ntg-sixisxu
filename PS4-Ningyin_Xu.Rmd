@@ -21,6 +21,12 @@ library(tidytext)
 library(wordcloud)
 library(scales)
 library(rtweet)
+library(tm)
+library(SnowballC)
+library(RColorBrewer)
+library(ggmap)
+library(reshape2)
+library(maps)
 
 options(digits = 3)
 set.seed(1234)
@@ -28,44 +34,103 @@ theme_set(theme_minimal())
 ```
 
 ```{r}
-appname <- "Ningyin Xu"
-key <- "IBXEOWUgfY6j0YmHxlKi1qdEE"
-secret <- "1CgwiCLVFJhWKewyd2DIPHG25xaTCalNaR79dYgC9e6JxtBXkM
-"
-twitter_token <- create_token(
-  app = appname,
-  consumer_key = key,
-  consumer_secret = secret)
+# appname <- "data_viz_nyxu"
+# key <- "QLgo2rFkLlBrbfuqgyj1mibIT"
+# secret <- "OW12yw9hdaVZGAQ7Qeae4HRm6KOta7mdIG0RHjaIrPUPxx3ZBA"
+# twitter_token <- create_token(
+#   app = appname,
+#   consumer_key = key,
+#   consumer_secret = secret,
+#   set_renv = T)
 
-## path of home directory
-home_directory <- path.expand("~/Desktop/dataviz/ntg-sixisxu/")
-
-## combine with name for token
-file_name <- file.path(home_directory, "twitter_token.rds")
-
-## save token to home directory
-saveRDS(twitter_token, file = file_name)
-
-rt <- search_tweets(
-  q = "#MeToo",
-  n = 3000,
-  include_rts = F
-)
+metoo <- search_tweets(q = "#MeToo",
+                       n = 10000,
+                       geocode = lookup_coords("usa"),
+                       lang = "en",
+                       include_rts = F)
 
 # tokenize
-rstats_token <- rt %>%
+metoo_token <- metoo %>%
   unnest_tokens(word, text, token = "tweets") %>%
   filter(!word %in% stop_words$word)
 
 # plot
-rstats_token %>%
+metoo_token <- metoo_token %>%
   count(word) %>%
-  filter(word != "#rstats") %>%
+  filter(word != "#metoo") 
+
+metoo_token %>%
   with(wordcloud(word, n, max.words = 100))
+
+# freeman
+freeman <- search_tweets(q = "#MorganFreeman",
+                       n = 10000,
+                       geocode = lookup_coords("usa"),
+                       lang = "en",
+                       include_rts = F)
+
+# tokenize
+freeman_token <- freeman %>%
+  unnest_tokens(word, text, token = "tweets") %>%
+  filter(!word %in% stop_words$word)
+
+freeman_token <- freeman_token %>%
+  count(word) %>%
+  filter(word != "#MorganFreeman") 
+
+freeman_token %>%
+  with(wordcloud(word, n, max.words = 100))
+
+# plot
+bind_rows(freeman = freeman_token, Metoo = metoo_token, .id = "topic") %>%
+  group_by(topic, word) %>%
+  summarise(sum(n)) %>%
+  acast(word ~ topic, value.var = "sum(n)", fill = 0) %>%
+  comparison.cloud(max.words = 80, colors = c("blue", "red"))
 ```
 
 
+```{r timeseries}
+ts_plot(freeman, by = "3 hours") +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequency of #MorganFreeman Twitter statuses",
+    subtitle = "Twitter status (tweet) counts aggregated using 3-hour intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
 
+ts_plot(metoo, by = "3 hours") +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold")) +
+  ggplot2::labs(
+    x = NULL, y = NULL,
+    title = "Frequency of #Metoo Twitter statuses",
+    subtitle = "Twitter status (tweet) counts aggregated using 3-hour intervals",
+    caption = "\nSource: Data collected from Twitter's REST API via rtweet"
+  )
+
+```
+
+```{r geospatial}
+rt <- lat_lng(freeman)
+rt1 <- lat_lng(metoo)
+data("us.cities")
+
+## plot state boundaries
+par(mar = c(0, 0, 0, 0))
+map("state", lwd = .25)
+map.cities(us.cities, 
+           minpop = 700000,
+           pch = '.')
+
+## plot lat and lng points onto state map
+with(rt1, 
+     points(lng, lat, pch = 19, cex = .5, col = rgb(1, .7, .3, .5)))
+
+with(rt, 
+     points(lng, lat, pch = 20, cex = .5, col = rgb(0, .3, .7, .5)))
+
+```
 
 
 
